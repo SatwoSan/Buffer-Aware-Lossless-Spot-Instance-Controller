@@ -1,8 +1,8 @@
 """
 Scenario generation for the Buffer-Aware Lossless Spot Instance Controller (BALSIC).
 
-Generates synthetic, mathematically guaranteed arrival traces (Doc 08 §3) 
-and eviction schedules, allowing the controller to be tested against both 
+Generates synthetic, mathematically guaranteed arrival traces and 
+eviction schedules, allowing the controller to be tested against both 
 "nice" and strictly adversarial conditions.
 """
 
@@ -36,11 +36,6 @@ def make_conforming_trace(
           (adversarial worst-case).
         - 'onoff': Alternates between greedy bursts and total silence.
         - 'smooth': Smoothly varying traffic capped safely below the limit.
-
-    Returns
-    -------
-    np.ndarray
-        Array of length n_ticks containing arrival volumes.
     """
     if n_ticks <= 0:
         raise ValueError(f"n_ticks must be > 0, got {n_ticks}")
@@ -56,7 +51,6 @@ def make_conforming_trace(
 
     for t in range(n_ticks):
         # Calculate the absolute maximum we can send this tick without violating ANY bucket.
-        # From: b(t-1) + a(t) - rho <= sigma  =>  a(t) <= sigma + rho - b(t-1)
         max_allowed = min(m.sigma + m.rho - m.state() for m in meters)
         
         if mode == "greedy":
@@ -70,7 +64,6 @@ def make_conforming_trace(
             a_t = max_allowed if is_on else 0.0
             
         elif mode == "smooth":
-            # Aim for 80% of the tightest sustained rate, add noise, clamp to safe limit.
             base_rate = min(rho for _, rho in buckets) * 0.8
             noise = rng.normal(0, base_rate * 0.2)
             a_t = np.clip(base_rate + noise, 0.0, max_allowed)
@@ -79,8 +72,6 @@ def make_conforming_trace(
             raise ValueError(f"Unknown mode '{mode}'")
 
         arrivals[t] = a_t
-        
-        # Advance meters
         for m in meters:
             m.update(a_t)
 
@@ -96,15 +87,6 @@ def make_violating_trace(
 ) -> np.ndarray:
     """
     Deliberately generate a trace that violates the bucket envelope.
-    
-    Used to demonstrate data loss when foundational assumptions are broken.
-
-    Parameters
-    ----------
-    violation_ticks : List[int]
-        Specific ticks where the bounds should be breached.
-    violation_size : float
-        The extra volume to inject *above* the maximum allowed boundary.
     """
     if violation_size <= 0:
         raise ValueError("violation_size must be positive to force a violation.")
@@ -116,10 +98,8 @@ def make_violating_trace(
         max_allowed = min(m.sigma + m.rho - m.state() for m in meters)
         
         if t in violation_ticks:
-            # Force the violation
             a_t = max_allowed + violation_size
         else:
-            # Just send the sustained rate (or max allowed if sustained is too high)
             base_rho = min(rho for _, rho in buckets)
             a_t = min(base_rho, max_allowed)
             
@@ -140,16 +120,6 @@ def schedule_evictions(
 ) -> Dict[str, Optional[np.ndarray]]:
     """
     Generate an eviction schedule and optional advance notices.
-
-    Parameters
-    ----------
-    mode : str
-        - 'random': Bernoulli trials with probability = hazard.
-        - 'worst_case': Hand-picked strikes (e.g., middle of the simulation).
-        - 'stale': Strikes exactly 1 tick after a control decision to maximize 
-          the (delta - 1) blind spot (Doc 08 §5.2). Requires `delta`.
-    notice_ticks : int, optional
-        If provided, schedules a notice exactly this many ticks before the eviction.
     """
     rng = np.random.default_rng(seed)
     evictions = []
@@ -164,8 +134,17 @@ def schedule_evictions(
     elif mode == "stale":
         if delta is None or delta < 1:
             raise ValueError("Must provide delta >= 1 for 'stale' mode.")
-        # If control happens at t=0, 5, 10... maximum staleness is at t=1, 6, 11...
-        evictions = [t + 1 for t in range(0, n_ticks, delta * 10) if t + 1 < n_ticks][1:]
+        
+        # Place a single eviction around the middle of the simulation, 
+        # exactly 1 tick after a control decision to maximize staleness[cite: 6].
+        mid_point = n_ticks // 2
+        control_tick = (mid_point // delta) * delta
+        stale_tick = control_tick + 1
+        
+        if stale_tick < n_ticks:
+            evictions = [stale_tick]
+        else:
+            evictions = [1]
         
     else:
         raise ValueError(f"Unknown mode '{mode}'")

@@ -9,6 +9,7 @@ capable of running both the EnvelopeController and Phase 5 baseline policies.
 from dataclasses import dataclass
 from typing import List, Tuple, Optional, Callable, Any
 import numpy as np
+import inspect
 from bucket import BucketMeter
 
 @dataclass
@@ -48,7 +49,7 @@ class SimResult:
 
 
 def run_simulation(
-    policy: Callable[[int, float, List[float], bool], Any], 
+    policy: Callable, 
     arrivals: np.ndarray, 
     evictions: np.ndarray,
     notices: Optional[np.ndarray], 
@@ -94,6 +95,10 @@ def run_simulation(
     evict_set = set(evictions) if evictions is not None else set()
     notice_set = set(notices) if notices is not None else set()
 
+    # Check policy signature to seamlessly support baselines (4 params) and alpha_star (2 params)
+    sig = inspect.signature(policy)
+    policy_takes_full_args = len(sig.parameters) >= 4
+
     # Telemetry
     backlog_trace = np.zeros(n_ticks, dtype=float)
     alpha_trace = np.zeros(n_ticks, dtype=float)
@@ -115,7 +120,12 @@ def run_simulation(
         # 2. Control Decision (only outside of an active migration recovery)
         if t % params.delta == 0 and mig_countdown <= 0:
             b_states = [m.state() for m in meters]
-            res = policy(t, x, b_states, notice_active)
+            
+            # API Adaptation: Route parameters based on policy signature
+            if policy_takes_full_args:
+                res = policy(t, x, b_states, notice_active)
+            else:
+                res = policy(x, b_states)
             
             # Unify API: accept both EnvelopeController Result objects and raw floats (baselines)
             if hasattr(res, 'alpha'):

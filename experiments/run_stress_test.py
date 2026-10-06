@@ -3,7 +3,7 @@ Phase 7a: Adversarial Proof-Verification Sweep.
 
 Iterates over a strict parameter grid of adversarial scenarios (greedy traces 
 and worst-case/stale eviction timings). Will raise an AssertionError and fail loudly 
-if a single data drop occurs, verifying the mathematical envelope law[cite: 6, 8].
+if a single data drop occurs, verifying the mathematical envelope law[cite: 6].
 """
 
 import sys
@@ -30,7 +30,7 @@ def main():
     # Bucket setups (Single vs Dual)
     bucket_setups = [
         [(200.0, 80.0)],                            # Single bucket
-        [(200.0, 80.0), (500.0, 60.0)]              # Dual bucket[cite: 8]
+        [(200.0, 80.0), (500.0, 60.0)]              # Dual bucket
     ]
     
     total_runs = len(t_migs) * len(deltas) * len(fs) * len(Bs) * len(t_ups) * len(bucket_setups)
@@ -51,10 +51,10 @@ def main():
             f=params.f, t_up=params.t_up
         )
         
-        # Adversarial greedy trace[cite: 6]
+        # Adversarial greedy trace
         arrivals = make_conforming_trace(seed=42, n_ticks=n_ticks, buckets=buckets, mode="greedy")
         
-        # Stale eviction (worst-case timing relative to delta)[cite: 6]
+        # Stale eviction (worst-case timing relative to delta)
         sched = schedule_evictions(seed=42, n_ticks=n_ticks, mode="stale", delta=delta)
         
         res = run_simulation(
@@ -65,8 +65,8 @@ def main():
             params=params
         )
         
-        # THE CORE ASSERTION[cite: 6]
-        assert res.drop_total == 0.0, (
+        # THE CORE ASSERTION (Updated for floating-point safety)[cite: 6]
+        assert res.drop_total <= 1e-9, (
             f"STRESS TEST FAILED! Data loss detected.\n"
             f"Params: t_mig={t_mig}, delta={delta}, f={f}, B={B}, t_up={t_up}\n"
             f"Drops: {res.drop_total}"
@@ -76,4 +76,4 @@ def main():
     print(f"Stress test complete. {passed}/{total_runs} scenarios passed with ZERO drops.")
 
 if __name__ == "__main__":
-    main() 
+    main()

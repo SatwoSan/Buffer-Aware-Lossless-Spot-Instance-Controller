@@ -2,7 +2,7 @@
 Phase 7b: Main Results Table Generation.
 
 Evaluates the EnvelopeController against all baselines over >=20 random seeds
-and extracts Drop %, Cost %, and Backlog metrics to a CSV[cite: 6].
+and extracts Drop %, Cost %, and Backlog metrics to a CSV.
 """
 
 import sys
@@ -22,7 +22,6 @@ def wrap_policy_for_simulator(policy_obj):
     """Helper to route the simulator's on_eviction hook to baseline classes."""
     def wrapped(tick, x, b, notice_active):
         return policy_obj(tick, x, b, notice_active)
-    # Attach hook if it exists
     if hasattr(policy_obj, 'on_eviction'):
         wrapped.on_eviction = policy_obj.on_eviction
     return wrapped
@@ -31,10 +30,9 @@ def main():
     print("Running baseline comparisons...")
     os.makedirs(RESULTS_DIR, exist_ok=True)
     
-    seeds = range(30)  # >= 20-30 seeds as per Phase 7b spec[cite: 6]
+    seeds = range(30)
     results = []
     
-    # We test two distinct regimes: Fast boot vs Slow boot[cite: 6, 8]
     regimes = [
         {"name": "Short T_mig", "t_mig": 10.0, "notice": 30},
         {"name": "Long T_mig", "t_mig": 60.0, "notice": 30}
@@ -51,26 +49,25 @@ def main():
             arrivals = make_conforming_trace(seed=seed, n_ticks=n_ticks, buckets=params.buckets, mode="smooth")
             sched = schedule_evictions(seed=seed, n_ticks=n_ticks, mode="random", hazard=0.01, notice_ticks=regime["notice"])
             
-            # 1. Envelope Controller
-            ctrl = EnvelopeController(**params.__dict__)
+            # FIXED: Explicitly pass only the parameters the controller expects
+            ctrl = EnvelopeController(
+                mu_od=params.mu_od, mu_sp=params.mu_sp, B=params.B, 
+                t_mig=params.t_mig, delta=params.delta, buckets=params.buckets, 
+                f=params.f, t_up=params.t_up
+            )
             res_env = run_simulation(ctrl.alpha_star, arrivals, sched["evictions"], sched["notices"], params)
             
-            # 2. All On-Demand
             res_od = run_simulation(policy_all_on_demand, arrivals, sched["evictions"], sched["notices"], params)
             
-            # 3. Static (50%)
             static_pol = make_static(0.5)
             res_stat = run_simulation(static_pol, arrivals, sched["evictions"], sched["notices"], params)
             
-            # 4. Reactive (Target 80%, cooldown 100 ticks)
             react_pol = ReactiveBaseline(0.8, 100)
             res_react = run_simulation(wrap_policy_for_simulator(react_pol), arrivals, sched["evictions"], sched["notices"], params)
             
-            # 5. Notice Aware
             notice_pol = NoticeAwareBaseline(0.8, 100)
             res_notice = run_simulation(wrap_policy_for_simulator(notice_pol), arrivals, sched["evictions"], sched["notices"], params)
             
-            # Log results[cite: 6]
             policies = [
                 ("EnvelopeController", res_env),
                 ("All-On-Demand", res_od),
@@ -92,12 +89,11 @@ def main():
                 
     df = pd.DataFrame(results)
     
-    # Aggregate summary
     summary = df.groupby(["Regime", "Policy"]).agg({
         "Drop_Pct": "mean",
         "Cost_Pct_OD": "mean",
         "P99_Backlog": "mean",
-        "Had_Loss": "sum"  # Count of seeds that had ANY loss[cite: 6]
+        "Had_Loss": "sum"
     }).reset_index()
     
     out_path = os.path.join(RESULTS_DIR, "comparison_summary.csv")

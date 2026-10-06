@@ -56,8 +56,8 @@ def main():
         
         plt.figure(figsize=(8, 5))
         plt.plot(df_delta["Variant"], df_delta["Cost_Pct_OD"], marker='s', color='green', linewidth=2)
-        plt.title('Impact of Control Staleness ($\Delta$) on Cost')
-        plt.xlabel('Control Period ($\Delta$)')
+        plt.title(r'Impact of Control Staleness ($\Delta$) on Cost')
+        plt.xlabel(r'Control Period ($\Delta$)')
         plt.ylabel('Cost % of All-OD')
         plt.grid(True, linestyle='--', alpha=0.7)
         plt.tight_layout()

@@ -2,7 +2,7 @@
 Phase 7c: Controller Ablation Studies.
 
 Isolates and evaluates the impact of Bucket Count (1 vs 2) and control period 
-Delta on cost efficiency and performance[cite: 6].
+Delta on cost efficiency and performance.
 """
 
 import sys
@@ -22,14 +22,12 @@ def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
     results = []
     
-    # Base parameters
     B_val = 3000.0
     t_mig = 40.0
     n_ticks = 800
     seed = 123
     sched = schedule_evictions(seed=seed, n_ticks=n_ticks, mode="random", hazard=0.02)
     
-    # --- Ablation 1: Bucket Count (1 vs 2) ---
     single_bucket = [(500.0, 70.0)]
     dual_bucket = [(200.0, 90.0), (800.0, 50.0)]
     
@@ -39,7 +37,13 @@ def main():
         params = SimParams(
             mu_od=100.0, mu_sp=75.0, B=B_val, t_mig=t_mig, delta=2, buckets=buckets
         )
-        ctrl = EnvelopeController(**params.__dict__)
+        
+        # FIXED: Explicit instantiation
+        ctrl = EnvelopeController(
+            mu_od=params.mu_od, mu_sp=params.mu_sp, B=params.B, 
+            t_mig=params.t_mig, delta=params.delta, buckets=params.buckets, 
+            f=params.f, t_up=params.t_up
+        )
         res = run_simulation(ctrl.alpha_star, arrivals, sched["evictions"], None, params)
         
         results.append({
@@ -49,7 +53,6 @@ def main():
             "Drop_Pct": res.drop_pct
         })
 
-    # --- Ablation 2: Control Staleness (Delta) ---
     deltas_to_test = [1, 5, 15, 30]
     arrivals = make_conforming_trace(seed=seed, n_ticks=n_ticks, buckets=single_bucket, mode="smooth")
     
@@ -57,7 +60,13 @@ def main():
         params = SimParams(
             mu_od=100.0, mu_sp=75.0, B=B_val, t_mig=t_mig, delta=d, buckets=single_bucket
         )
-        ctrl = EnvelopeController(**params.__dict__)
+        
+        # FIXED: Explicit instantiation
+        ctrl = EnvelopeController(
+            mu_od=params.mu_od, mu_sp=params.mu_sp, B=params.B, 
+            t_mig=params.t_mig, delta=params.delta, buckets=params.buckets, 
+            f=params.f, t_up=params.t_up
+        )
         res = run_simulation(ctrl.alpha_star, arrivals, sched["evictions"], None, params)
         
         results.append({

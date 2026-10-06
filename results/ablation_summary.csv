@@ -1,0 +1,7 @@
+Experiment,Variant,Cost_Pct_OD,Drop_Pct
+Bucket Count,Single Bucket,45.373449839598436,0.0
+Bucket Count,Dual Bucket,50.24849110838916,0.0
+Delta Sensitivity,Delta=1,49.964802485366484,0.0
+Delta Sensitivity,Delta=5,51.030462197737805,0.0
+Delta Sensitivity,Delta=15,53.7850297178489,0.0
+Delta Sensitivity,Delta=30,57.36522812282043,0.0

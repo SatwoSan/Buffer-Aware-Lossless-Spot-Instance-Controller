@@ -7,6 +7,11 @@ bucket math and the requested timing modes.
 
 import pytest
 import numpy as np
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from scenario import make_conforming_trace, make_violating_trace, schedule_evictions
 from bucket import BucketMeter
 
@@ -25,7 +30,8 @@ class TestConformingTrace:
         for a_t in arrivals:
             for m in meters:
                 m.update(a_t)
-                assert m.conforms() is True, f"Bucket {m.sigma, m.rho} violated in {mode} mode!"
+                # Removed "is True" to prevent strict object identity failures with numpy.bool_
+                assert m.conforms(), f"Bucket {m.sigma, m.rho} violated in {mode} mode!"
 
 class TestViolatingTrace:
     def test_trace_violates_at_exact_ticks(self):
@@ -42,12 +48,11 @@ class TestViolatingTrace:
         for t, a_t in enumerate(arrivals):
             meter.update(a_t)
             if t in violation_ticks:
-                assert meter.conforms() is False, f"Expected violation missed at tick {t}"
+                # Removed "is False" to prevent numpy boolean identity failures
+                assert not meter.conforms(), f"Expected violation missed at tick {t}"
             else:
-                # Need to allow it to recover, but immediately before/after it might still fail 
-                # depending on the leak rate. However, at t=49, it should definitely conform.
                 if t < violation_ticks[0]:
-                    assert meter.conforms() is True
+                    assert meter.conforms()
 
 class TestEvictions:
     def test_stale_mode_maximizes_blind_spot(self):
