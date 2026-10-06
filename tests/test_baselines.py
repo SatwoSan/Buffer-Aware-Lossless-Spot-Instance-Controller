@@ -25,6 +25,7 @@ def test_static_policy():
     assert policy(5, 1500.0, [200.0], True) == 0.65
 
 def test_static_policy_validation():
+    """Ensure static policy validates inputs aggressively."""
     with pytest.raises(ValueError, match="must be in"):
         make_static(1.5)
     with pytest.raises(ValueError, match="must be in"):
@@ -55,7 +56,7 @@ def test_reactive_baseline_state_transitions():
 def test_notice_aware_baseline_preemptive_reaction():
     """
     Notice-aware baseline should react immediately upon seeing `notice_active=True`,
-    even before the actual eviction hook is called.
+    even before the actual eviction hook is called[cite: 6].
     """
     policy = NoticeAwareBaseline(alpha_hi=0.75, cooldown_ticks=5)
     

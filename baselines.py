@@ -1,7 +1,7 @@
 """
 Baseline policies for the Buffer-Aware Lossless Spot Instance Controller (BALSIC).
 
-Implements the reference policies outlined in Doc 09 Phase 5:
+Implements the reference policies outlined in the implementation guide:
 - All On-Demand (reference zero-risk)
 - Static (fixed alpha)
 - Reactive (reacts after an eviction)
@@ -12,7 +12,7 @@ from typing import List, Callable
 
 def policy_all_on_demand(tick: int, x: float, b: List[float], notice_active: bool) -> float:
     """
-    The safest, most expensive baseline. Always returns 0.0 (100% On-Demand).
+    The safest, most expensive baseline. Always returns 0.0 (100% On-Demand)[cite: 6].
     
     Parameters
     ----------
@@ -35,7 +35,7 @@ def policy_all_on_demand(tick: int, x: float, b: List[float], notice_active: boo
 
 def make_static(alpha: float) -> Callable[[int, float, List[float], bool], float]:
     """
-    Returns a policy that always requests a fixed Spot fraction.
+    Returns a policy that always requests a fixed Spot fraction[cite: 6].
     
     Parameters
     ----------
@@ -51,7 +51,7 @@ def make_static(alpha: float) -> Callable[[int, float, List[float], bool], float
         raise ValueError(f"Static alpha must be in [0, 1], got {alpha}")
 
     def static_policy(tick: int, x: float, b: List[float], notice_active: bool) -> float:
-        return alpha
+        return float(alpha)
 
     return static_policy
 
@@ -62,9 +62,7 @@ class ReactiveBaseline:
     
     Runs a high Spot fraction (`alpha_hi`) normally. When an eviction actually 
     strikes, it drops to 0.0 (all On-Demand) for `cooldown_ticks` to recover, 
-    then returns to `alpha_hi`.
-    
-    Requires the simulator to call `.on_eviction()` when a strike occurs.
+    then returns to `alpha_hi`[cite: 6].
     """
     
     def __init__(self, alpha_hi: float, cooldown_ticks: int):
@@ -73,12 +71,12 @@ class ReactiveBaseline:
         if cooldown_ticks < 0:
             raise ValueError(f"cooldown_ticks must be >= 0, got {cooldown_ticks}")
             
-        self.alpha_hi = alpha_hi
+        self.alpha_hi = float(alpha_hi)
         self.cooldown_ticks = cooldown_ticks
         self.cooldown_remaining = 0
 
     def on_eviction(self) -> None:
-        """Hook called by the simulator EXACTLY when an eviction occurs."""
+        """Hook called by the simulator EXACTLY when an eviction occurs[cite: 6]."""
         self.cooldown_remaining = self.cooldown_ticks
 
     def __call__(self, tick: int, x: float, b: List[float], notice_active: bool) -> float:
@@ -93,7 +91,7 @@ class NoticeAwareBaseline:
     An advanced reactive policy that leverages cloud provider interruption notices.
     
     Like ReactiveBaseline, but it drops to 0.0 as soon as `notice_active` is True, 
-    allowing it to preemptively recover before the eviction even lands.
+    allowing it to preemptively recover before the eviction even lands[cite: 6].
     """
     
     def __init__(self, alpha_hi: float, cooldown_ticks: int):
@@ -102,7 +100,7 @@ class NoticeAwareBaseline:
         if cooldown_ticks < 0:
             raise ValueError(f"cooldown_ticks must be >= 0, got {cooldown_ticks}")
             
-        self.alpha_hi = alpha_hi
+        self.alpha_hi = float(alpha_hi)
         self.cooldown_ticks = cooldown_ticks
         self.cooldown_remaining = 0
 
